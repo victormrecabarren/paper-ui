@@ -12,3 +12,10 @@ html, body, #root {
 body {
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* Mobile touch: keep canvas interactions from scrolling/zooming the page */
+html, body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+}

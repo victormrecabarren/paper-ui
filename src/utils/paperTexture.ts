@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 
-const SIZE = 256
+// Higher resolution reduces visible pixel-grid when camera is close.
+const SIZE = 512
 
 /**
  * Construction-paper style texture: subtle grain and color variation.
@@ -27,5 +28,10 @@ export function createPaperTexture(
   const tex = new THREE.CanvasTexture(canvas)
   tex.wrapS = THREE.RepeatWrapping
   tex.wrapT = THREE.RepeatWrapping
+  // Improve downsampling/angle sampling so the grain doesn't look blocky.
+  tex.generateMipmaps = true
+  tex.minFilter = THREE.LinearMipmapLinearFilter
+  tex.magFilter = THREE.LinearFilter
+  tex.colorSpace = THREE.SRGBColorSpace
   return tex
 }

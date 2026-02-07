@@ -1,16 +1,16 @@
 import { useMemo } from 'react'
 import { createPaperTexture } from '../utils/paperTexture'
 import { createSheetWithCircleHoles } from '../utils/paperGeometries'
+import { POS_GREEN_SHEET, Z_GREEN_SHEET } from '../constants/layers'
 import { DraggableSheet } from './DraggableSheet'
-import { POS_WHITE_SHEET, Z_WHITE_SHEET } from '../constants/layers'
 
-const WHITE_SHEET_WIDTH = 1.8
-const WHITE_SHEET_HEIGHT = 1.8
+const GREEN_SHEET_WIDTH = 1.8
+const GREEN_SHEET_HEIGHT = 1.8
 const CIRCLE_HOLES_COLS = 4
 const CIRCLE_HOLES_ROWS = 4
 const CIRCLE_RADIUS = 0.14
 
-export function WhiteSheet({
+export function GreenSheet({
   isAnyDragging,
   onDragStateChange,
   stackRestGap,
@@ -24,28 +24,29 @@ export function WhiteSheet({
   const geometry = useMemo(
     () =>
       createSheetWithCircleHoles(
-        WHITE_SHEET_WIDTH,
-        WHITE_SHEET_HEIGHT,
+        GREEN_SHEET_WIDTH,
+        GREEN_SHEET_HEIGHT,
         CIRCLE_HOLES_COLS,
         CIRCLE_HOLES_ROWS,
         CIRCLE_RADIUS
       ),
     []
   )
-  const texture = useMemo(() => createPaperTexture('#f8f8f5', 0.1), [])
+  const texture = useMemo(() => createPaperTexture('#47B36A', 0.1), [])
   return (
     <DraggableSheet
-      planeZ={Z_WHITE_SHEET}
-      stackIndex={1}
+      planeZ={Z_GREEN_SHEET}
+      stackIndex={3}
       stackRestGap={stackRestGap}
       stackSpreadMultiplier={stackSpreadMultiplier}
       isAnyDragging={isAnyDragging}
       onDragStateChange={onDragStateChange}
       geometry={geometry}
-      color="#f8f8f5"
+      color="#47B36A"
       texture={texture}
-      hitAreaSize={[WHITE_SHEET_WIDTH, WHITE_SHEET_HEIGHT]}
-      initialPosition={POS_WHITE_SHEET}
+      hitAreaSize={[GREEN_SHEET_WIDTH, GREEN_SHEET_HEIGHT]}
+      initialPosition={POS_GREEN_SHEET}
     />
   )
 }
+
