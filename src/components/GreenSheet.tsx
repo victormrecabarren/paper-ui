@@ -1,51 +1,62 @@
 import { useMemo } from 'react'
 import { createPaperTexture } from '../utils/paperTexture'
-import { createSheetWithCircleHoles } from '../utils/paperGeometries'
-import { POS_GREEN_SHEET, Z_GREEN_SHEET } from '../constants/layers'
+import { createSheetWithStaggeredCircleHolesAlignedToSquareCenters } from '../utils/paperGeometries'
 import { DraggableSheet } from './DraggableSheet'
 
-const GREEN_SHEET_WIDTH = 1.8
-const GREEN_SHEET_HEIGHT = 1.8
-const CIRCLE_HOLES_COLS = 4
-const CIRCLE_HOLES_ROWS = 4
-const CIRCLE_RADIUS = 0.14
+const GREEN_SHEET_WIDTH = 3.6
+const GREEN_SHEET_HEIGHT = 3.6
+// Match the square sheet's grid so patterns align.
+const SQUARE_HOLES = 6
+const SQUARE_HALF = 0.22
+const CIRCLE_SCALE = 0.62
 
 export function GreenSheet({
+  stackIndex,
+  stackBaseZ,
+  paperColor = '#47B36A',
   isAnyDragging,
   onDragStateChange,
   stackRestGap,
   stackSpreadMultiplier,
+  position,
+  onDragDelta,
 }: {
+  stackIndex: number
+  stackBaseZ: number
+  paperColor?: string
   isAnyDragging?: boolean
   onDragStateChange?: (isDragging: boolean) => void
   stackRestGap?: number
   stackSpreadMultiplier?: number
+  position: [number, number]
+  onDragDelta?: (delta: [number, number]) => void
 }) {
   const geometry = useMemo(
     () =>
-      createSheetWithCircleHoles(
-        GREEN_SHEET_WIDTH,
-        GREEN_SHEET_HEIGHT,
-        CIRCLE_HOLES_COLS,
-        CIRCLE_HOLES_ROWS,
-        CIRCLE_RADIUS
+      createSheetWithStaggeredCircleHolesAlignedToSquareCenters(
+        Math.min(GREEN_SHEET_WIDTH, GREEN_SHEET_HEIGHT),
+        SQUARE_HOLES,
+        SQUARE_HOLES,
+        SQUARE_HALF,
+        CIRCLE_SCALE
       ),
     []
   )
-  const texture = useMemo(() => createPaperTexture('#47B36A', 0.1), [])
+  const texture = useMemo(() => createPaperTexture(paperColor, 0.1), [paperColor])
   return (
     <DraggableSheet
-      planeZ={Z_GREEN_SHEET}
-      stackIndex={3}
+      planeZ={stackBaseZ}
+      stackIndex={stackIndex}
       stackRestGap={stackRestGap}
       stackSpreadMultiplier={stackSpreadMultiplier}
       isAnyDragging={isAnyDragging}
       onDragStateChange={onDragStateChange}
+      onDragDelta={onDragDelta}
       geometry={geometry}
-      color="#47B36A"
+      color={paperColor}
       texture={texture}
       hitAreaSize={[GREEN_SHEET_WIDTH, GREEN_SHEET_HEIGHT]}
-      initialPosition={POS_GREEN_SHEET}
+      position={position}
     />
   )
 }

@@ -1,24 +1,33 @@
 import { useMemo } from 'react'
 import { createPaperTexture } from '../utils/paperTexture'
 import { createSheetWithSquareHoles } from '../utils/paperGeometries'
-import { POS_ORANGE_SHEET, Z_ORANGE_SHEET } from '../constants/layers'
 import { DraggableSheet } from './DraggableSheet'
 
-const ORANGE_SHEET_WIDTH = 1.8
-const ORANGE_SHEET_HEIGHT = 1.8
-const SQUARE_HOLES = 3
+const ORANGE_SHEET_WIDTH = 3.6
+const ORANGE_SHEET_HEIGHT = 3.6
+const SQUARE_HOLES = 6
 const SQUARE_HALF = 0.22
 
 export function OrangeSheet({
+  stackIndex,
+  stackBaseZ,
+  paperColor = '#F2A245',
   isAnyDragging,
   onDragStateChange,
   stackRestGap,
   stackSpreadMultiplier,
+  position,
+  onDragDelta,
 }: {
+  stackIndex: number
+  stackBaseZ: number
+  paperColor?: string
   isAnyDragging?: boolean
   onDragStateChange?: (isDragging: boolean) => void
   stackRestGap?: number
   stackSpreadMultiplier?: number
+  position: [number, number]
+  onDragDelta?: (delta: [number, number]) => void
 }) {
   const geometry = useMemo(
     () =>
@@ -31,20 +40,21 @@ export function OrangeSheet({
       ),
     []
   )
-  const texture = useMemo(() => createPaperTexture('#F2A245', 0.08), [])
+  const texture = useMemo(() => createPaperTexture(paperColor, 0.08), [paperColor])
   return (
     <DraggableSheet
-      planeZ={Z_ORANGE_SHEET}
-      stackIndex={0}
+      planeZ={stackBaseZ}
+      stackIndex={stackIndex}
       stackRestGap={stackRestGap}
       stackSpreadMultiplier={stackSpreadMultiplier}
       isAnyDragging={isAnyDragging}
       onDragStateChange={onDragStateChange}
+      onDragDelta={onDragDelta}
       geometry={geometry}
-      color="#F2A245"
+      color={paperColor}
       texture={texture}
       hitAreaSize={[ORANGE_SHEET_WIDTH, ORANGE_SHEET_HEIGHT]}
-      initialPosition={POS_ORANGE_SHEET}
+      position={position}
     />
   )
 }

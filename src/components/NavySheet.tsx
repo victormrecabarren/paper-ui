@@ -2,23 +2,32 @@ import { useMemo } from 'react'
 import { createPaperTexture } from '../utils/paperTexture'
 import { createSheetWithSquareHoles } from '../utils/paperGeometries'
 import { DraggableSheet } from './DraggableSheet'
-import { POS_NAVY_SHEET, Z_NAVY_SHEET } from '../constants/layers'
 
-const NAVY_SHEET_WIDTH = 1.8
-const NAVY_SHEET_HEIGHT = 1.8
-const SQUARE_HOLES = 3
+const NAVY_SHEET_WIDTH = 3.6
+const NAVY_SHEET_HEIGHT = 3.6
+const SQUARE_HOLES = 6
 const SQUARE_HALF = 0.22
 
 export function NavySheet({
+  stackIndex,
+  stackBaseZ,
+  paperColor = '#376AB2',
   isAnyDragging,
   onDragStateChange,
   stackRestGap,
   stackSpreadMultiplier,
+  position,
+  onDragDelta,
 }: {
+  stackIndex: number
+  stackBaseZ: number
+  paperColor?: string
   isAnyDragging?: boolean
   onDragStateChange?: (isDragging: boolean) => void
   stackRestGap?: number
   stackSpreadMultiplier?: number
+  position: [number, number]
+  onDragDelta?: (delta: [number, number]) => void
 }) {
   const geometry = useMemo(
     () =>
@@ -31,20 +40,21 @@ export function NavySheet({
       ),
     []
   )
-  const texture = useMemo(() => createPaperTexture('#376AB2', 0.08), [])
+  const texture = useMemo(() => createPaperTexture(paperColor, 0.08), [paperColor])
   return (
     <DraggableSheet
-      planeZ={Z_NAVY_SHEET}
-      stackIndex={2}
+      planeZ={stackBaseZ}
+      stackIndex={stackIndex}
       stackRestGap={stackRestGap}
       stackSpreadMultiplier={stackSpreadMultiplier}
       isAnyDragging={isAnyDragging}
       onDragStateChange={onDragStateChange}
+      onDragDelta={onDragDelta}
       geometry={geometry}
-      color="#376AB2"
+      color={paperColor}
       texture={texture}
       hitAreaSize={[NAVY_SHEET_WIDTH, NAVY_SHEET_HEIGHT]}
-      initialPosition={POS_NAVY_SHEET}
+      position={position}
     />
   )
 }

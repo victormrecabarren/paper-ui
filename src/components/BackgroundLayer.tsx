@@ -2,19 +2,19 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { createPaperTexture } from '../utils/paperTexture'
 import { Z_BACKGROUND_LAYER } from '../constants/layers'
+import { PALETTE } from '../constants/palette'
 
 const TABLE_SIZE = 8
-const TABLE_COLOR = '#5FE8F2'
 
-export function BackgroundLayer() {
+export function BackgroundLayer({ color = PALETTE.mint }: { color?: string }) {
   // Use the same construction-paper texture approach as the sheets.
   // Repeat it so the grain scale doesn't look "flat" on a large table plane.
   const texture = useMemo(() => {
-    const tex = createPaperTexture(TABLE_COLOR, 0.1)
+    const tex = createPaperTexture(color, 0.1)
     tex.repeat.set(4.5, 4.5)
     tex.needsUpdate = true
     return tex
-  }, [])
+  }, [color])
   return (
     <mesh
       position={[0, 0, Z_BACKGROUND_LAYER]}
