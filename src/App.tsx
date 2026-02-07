@@ -152,6 +152,26 @@ function App() {
     setBackgroundColor(palette[4])
   }, [])
 
+  const onResetPositions = useCallback(() => {
+    setPositions({
+      orange: POS_ORANGE_SHEET,
+      white: POS_WHITE_SHEET,
+      navy: POS_NAVY_SHEET,
+      green: POS_GREEN_SHEET,
+    })
+  }, [])
+
+  const buttonStyle = {
+    padding: '10px 12px',
+    borderRadius: 12,
+    border: '1px solid rgba(255,255,255,0.15)',
+    background: 'rgba(20,20,35,0.7)',
+    color: 'white',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    cursor: 'pointer' as const,
+  }
+
   return (
     <div
       style={{
@@ -163,25 +183,23 @@ function App() {
         position: 'relative',
       }}
     >
-      <button
-        onClick={onShuffle}
+      <div
         style={{
           position: 'absolute',
           top: 12,
           left: 12,
           zIndex: 10,
-          padding: '10px 12px',
-          borderRadius: 12,
-          border: '1px solid rgba(255,255,255,0.15)',
-          background: 'rgba(20,20,35,0.7)',
-          color: 'white',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          cursor: 'pointer',
+          display: 'flex',
+          gap: 8,
         }}
       >
-        Shuffle layers
-      </button>
+        <button onClick={onShuffle} style={buttonStyle}>
+          Shuffle layers
+        </button>
+        <button onClick={onResetPositions} style={buttonStyle}>
+          Reset position
+        </button>
+      </div>
       <Canvas
         camera={{ position: [0, 0, 2.5], fov: 45 }}
         style={{ background: '#1a1a2e', touchAction: 'none' }}
