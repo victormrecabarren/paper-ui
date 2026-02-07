@@ -56,9 +56,12 @@ const LIGHTING = {
 /** Round to step to reduce shadow-map jitter. */
 const SHADOW_STABILITY_STEP = 0.003
 
-/** Fast at start of segment, slow at end (smooth arrival at each corner). */
-function easeOutCubic(t: number): number {
-  return 1 - Math.pow(1 - t, 3)
+/** Seconds to travel from one corner to the next. */
+const LIGHT_TRAVEL_DURATION = 0.35
+
+/** Smooth start and end. */
+function easeInOutCubic(t: number): number {
+  return t * t * (3 - 2 * t)
 }
 
 /** Square corners in xy: [upper-left, upper-right, bottom-right, bottom-left]. */
@@ -66,42 +69,73 @@ function getSquareCorners(r: number): [number, number][] {
   return [[-r, r], [r, r], [r, -r], [-r, -r]]
 }
 
-function RotatingSunLight({ lightOn }: { lightOn: boolean }) {
+/** 0=upper-left, 1=upper-right, 2=lower-right, 3=lower-left, 4=off */
+type LightState = 0 | 1 | 2 | 3 | 4
+
+function RotatingSunLight({ lightState }: { lightState: LightState }) {
   const lightRef = useRef<THREE.DirectionalLight>(null)
   const corners = useRef<[number, number][] | null>(null)
   if (!corners.current) corners.current = getSquareCorners(LIGHTING.sunSquareHalfExtent)
 
-  useFrame((state) => {
+  const prevStateRef = useRef<LightState>(lightState)
+  const fromRef = useRef<[number, number]>([...corners.current![0]])
+  const toRef = useRef<[number, number]>([...corners.current![0]])
+  const progressRef = useRef(1)
+
+  useFrame((_, delta) => {
     const light = lightRef.current
     if (!light || !corners.current) return
-    const z = LIGHTING.sunOrbitZ
-    const period = LIGHTING.sunSquarePeriod
-    const edgeDuration = period / 4
-    const time = state.clock.elapsedTime % period
-    const segment = Math.min(3, Math.floor(time / edgeDuration))
-    const tLocal = (time % edgeDuration) / edgeDuration
-    const tEased = easeOutCubic(tLocal)
-    const [x0, y0] = corners.current[segment]
-    const [x1, y1] = corners.current[(segment + 1) % 4]
+
+    const prev = prevStateRef.current
+    if (prev !== lightState) {
+      prevStateRef.current = lightState
+      if (lightState === 4) {
+        progressRef.current = 1
+        return
+      }
+      if (prev === 4) {
+        fromRef.current = [...corners.current[lightState]]
+        toRef.current = [...corners.current[lightState]]
+        progressRef.current = 1
+      } else {
+        fromRef.current = [...corners.current[prev]]
+        toRef.current = [...corners.current[lightState]]
+        progressRef.current = 0
+      }
+    }
+
+    if (lightState === 4) return
+
+    let progress = progressRef.current
+    if (progress < 1) {
+      progress = Math.min(1, progress + delta / LIGHT_TRAVEL_DURATION)
+      progressRef.current = progress
+    }
+
+    const eased = easeInOutCubic(progress)
+    const [x0, y0] = fromRef.current
+    const [x1, y1] = toRef.current
+    const x = x0 + eased * (x1 - x0)
+    const y = y0 + eased * (y1 - y0)
     const round = (v: number) =>
       Math.round(v / SHADOW_STABILITY_STEP) * SHADOW_STABILITY_STEP
-    light.position.x = round(x0 + tEased * (x1 - x0))
-    light.position.y = round(y0 + tEased * (y1 - y0))
-    light.position.z = z
+    light.position.x = round(x)
+    light.position.y = round(y)
+    light.position.z = LIGHTING.sunOrbitZ
     light.updateMatrixWorld(true)
   })
 
-  const ambientIntensity = lightOn
-    ? LIGHTING.ambientIntensity
-    : 0.75
+  const ambientIntensity = lightState === 4 ? 0.75 : LIGHTING.ambientIntensity
+  const cornersArr = getSquareCorners(LIGHTING.sunSquareHalfExtent)
+  const initialPos = lightState === 4 ? cornersArr[0] : cornersArr[lightState]
 
   return (
     <>
       <ambientLight intensity={ambientIntensity} />
-      {lightOn && (
+      {lightState !== 4 && (
         <directionalLight
           ref={lightRef}
-          position={[-LIGHTING.sunSquareHalfExtent, LIGHTING.sunSquareHalfExtent, LIGHTING.sunOrbitZ]}
+          position={[initialPos[0], initialPos[1], LIGHTING.sunOrbitZ]}
           intensity={LIGHTING.sunIntensity}
           castShadow
           shadow-mapSize-width={LIGHTING.shadowMapSize}
@@ -117,6 +151,68 @@ function RotatingSunLight({ lightOn }: { lightOn: boolean }) {
         />
       )}
     </>
+  )
+}
+
+const LIGHT_CORNER_BOX_SIZE = 44
+const LIGHT_DOT_OFFSET = 10
+const LIGHT_DOT_SIZE = 10
+
+function LightCornerControl({
+  lightState,
+  onCycle,
+  style,
+}: {
+  lightState: LightState
+  onCycle: () => void
+  style: React.CSSProperties
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onCycle}
+      style={{
+        ...style,
+        width: LIGHT_CORNER_BOX_SIZE,
+        height: LIGHT_CORNER_BOX_SIZE,
+        padding: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative',
+      }}
+      title={
+        lightState === 4
+          ? 'Light off (click to cycle)'
+          : `Light from ${['upper-left', 'upper-right', 'lower-right', 'lower-left'][lightState]} (click to cycle)`
+      }
+    >
+      {/* 4 dots: top-left, top-right, bottom-right, bottom-left */}
+      {([0, 1, 2, 3] as const).map((i) => {
+        const isLit = lightState === i
+        const pos: React.CSSProperties =
+          i === 0
+            ? { top: LIGHT_DOT_OFFSET, left: LIGHT_DOT_OFFSET }
+            : i === 1
+              ? { top: LIGHT_DOT_OFFSET, right: LIGHT_DOT_OFFSET }
+              : i === 2
+                ? { bottom: LIGHT_DOT_OFFSET, right: LIGHT_DOT_OFFSET }
+                : { bottom: LIGHT_DOT_OFFSET, left: LIGHT_DOT_OFFSET }
+        return (
+          <span
+            key={i}
+            style={{
+              position: 'absolute',
+              width: LIGHT_DOT_SIZE,
+              height: LIGHT_DOT_SIZE,
+              borderRadius: '50%',
+              background: isLit ? 'rgba(255, 220, 120, 0.95)' : 'rgba(255,255,255,0.2)',
+              ...pos,
+            }}
+          />
+        )
+      })}
+    </button>
   )
 }
 
@@ -148,7 +244,7 @@ function App() {
   })
 
   const [backgroundColor, setBackgroundColor] = useState<string>(PALETTE_LIST[1])
-  const [lightOn, setLightOn] = useState(true)
+  const [lightState, setLightState] = useState<LightState>(0)
 
   const stackIndexOf = useCallback(
     (id: SheetId) => {
@@ -254,9 +350,11 @@ function App() {
         <button onClick={onResetPositions} style={buttonStyle}>
           Reset position
         </button>
-        <button onClick={() => setLightOn((on) => !on)} style={buttonStyle}>
-          {lightOn ? 'Light off' : 'Light on'}
-        </button>
+        <LightCornerControl
+          lightState={lightState}
+          onCycle={() => setLightState((s) => ((s + 1) % 5) as LightState)}
+          style={buttonStyle}
+        />
       </div>
       <Canvas
         camera={{ position: [0, 0, 2.5], fov: 45 }}
@@ -276,7 +374,7 @@ function App() {
           toneMappingExposure: LIGHTING.rendererExposure,
         }}
       >
-        <RotatingSunLight lightOn={lightOn} />
+        <RotatingSunLight lightState={lightState} />
         <BackgroundLayer color={backgroundColor} />
 
         {stackOrder.map((id) => {
