@@ -1,21 +1,36 @@
-import { useRef } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import type { Mesh } from 'three'
+import { useRef, useLayoutEffect } from 'react'
+import { Canvas } from '@react-three/fiber'
+import * as THREE from 'three'
+import { BackgroundLayer } from './components/BackgroundLayer'
+import { WhiteSheet } from './components/WhiteSheet'
+import { NavySheet } from './components/NavySheet'
 
-function RotatingBox() {
-  const meshRef = useRef<Mesh>(null)
-
-  useFrame((_state, delta) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y += delta * 0.5
+function SceneLights() {
+  const spotRef = useRef<THREE.SpotLight>(null)
+  const spotTargetRef = useRef<THREE.Group>(null)
+  useLayoutEffect(() => {
+    if (spotRef.current && spotTargetRef.current) {
+      spotRef.current.target = spotTargetRef.current
     }
-  })
-
+  }, [])
   return (
-    <mesh ref={meshRef}>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color="orange" />
-    </mesh>
+    <>
+      <ambientLight intensity={0.55} />
+      <group ref={spotTargetRef} position={[0, 0, 0]} />
+      <spotLight
+        ref={spotRef}
+        position={[-5, 1.5, 9]}
+        angle={0.65}
+        penumbra={0.35}
+        intensity={1.4}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-near={0.5}
+        shadow-camera-far={20}
+        shadow-camera-fov={50}
+      />
+    </>
   )
 }
 
@@ -23,12 +38,14 @@ function App() {
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <Canvas
-        camera={{ position: [0, 0, 5], fov: 50 }}
+        camera={{ position: [0, 0, 6], fov: 50 }}
         style={{ background: '#1a1a2e' }}
+        shadows
       >
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[5, 5, 5]} intensity={1} />
-        <RotatingBox />
+        <SceneLights />
+        <BackgroundLayer />
+        <WhiteSheet />
+        <NavySheet />
       </Canvas>
     </div>
   )
