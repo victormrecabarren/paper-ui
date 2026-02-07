@@ -19,3 +19,10 @@ html, body {
   overscroll-behavior: none;
   touch-action: none;
 }
+
+/* Disable long-press highlight / callout on mobile */
+html, body, #root {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}

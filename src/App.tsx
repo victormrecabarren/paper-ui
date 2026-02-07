@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react'
-import { Canvas } from '@react-three/fiber'
+import { useCallback, useRef, useState } from 'react'
+import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { BackgroundLayer } from './components/BackgroundLayer'
 import { OrangeSheet } from './components/OrangeSheet'
@@ -29,8 +29,14 @@ const LIGHTING = {
   // Raise to soften shadow contrast (less "inky" shadows).
   ambientIntensity: 0.42,
 
-  sunPosition: [3.5, 5.5, 6] as THREE.Vector3Tuple,
   sunIntensity: 3.2,
+
+  /** Sun travels a square parallel to the sheets (xy plane). Order: upper-left → upper-right → bottom-right → bottom-left → repeat. */
+  sunSquareHalfExtent: 5,
+  /** Distance in front of the sheets (z). */
+  sunOrbitZ: 8,
+  /** Seconds to complete one full square (all four edges). */
+  sunSquarePeriod: 24,
 
   shadowMapSize: 4096,
   shadowBias: -0.00015,
@@ -47,25 +53,69 @@ const LIGHTING = {
   },
 } as const
 
-function SimpleKeyLight() {
+/** Round to step to reduce shadow-map jitter. */
+const SHADOW_STABILITY_STEP = 0.003
+
+/** Fast at start of segment, slow at end (smooth arrival at each corner). */
+function easeOutCubic(t: number): number {
+  return 1 - Math.pow(1 - t, 3)
+}
+
+/** Square corners in xy: [upper-left, upper-right, bottom-right, bottom-left]. */
+function getSquareCorners(r: number): [number, number][] {
+  return [[-r, r], [r, r], [r, -r], [-r, -r]]
+}
+
+function RotatingSunLight({ lightOn }: { lightOn: boolean }) {
+  const lightRef = useRef<THREE.DirectionalLight>(null)
+  const corners = useRef<[number, number][] | null>(null)
+  if (!corners.current) corners.current = getSquareCorners(LIGHTING.sunSquareHalfExtent)
+
+  useFrame((state) => {
+    const light = lightRef.current
+    if (!light || !corners.current) return
+    const z = LIGHTING.sunOrbitZ
+    const period = LIGHTING.sunSquarePeriod
+    const edgeDuration = period / 4
+    const time = state.clock.elapsedTime % period
+    const segment = Math.min(3, Math.floor(time / edgeDuration))
+    const tLocal = (time % edgeDuration) / edgeDuration
+    const tEased = easeOutCubic(tLocal)
+    const [x0, y0] = corners.current[segment]
+    const [x1, y1] = corners.current[(segment + 1) % 4]
+    const round = (v: number) =>
+      Math.round(v / SHADOW_STABILITY_STEP) * SHADOW_STABILITY_STEP
+    light.position.x = round(x0 + tEased * (x1 - x0))
+    light.position.y = round(y0 + tEased * (y1 - y0))
+    light.position.z = z
+    light.updateMatrixWorld(true)
+  })
+
+  const ambientIntensity = lightOn
+    ? LIGHTING.ambientIntensity
+    : 0.75
+
   return (
     <>
-      <ambientLight intensity={LIGHTING.ambientIntensity} />
-      <directionalLight
-        position={LIGHTING.sunPosition}
-        intensity={LIGHTING.sunIntensity}
-        castShadow
-        shadow-mapSize-width={LIGHTING.shadowMapSize}
-        shadow-mapSize-height={LIGHTING.shadowMapSize}
-        shadow-bias={LIGHTING.shadowBias}
-        shadow-normalBias={LIGHTING.shadowNormalBias}
-        shadow-camera-left={LIGHTING.shadowCam.left}
-        shadow-camera-right={LIGHTING.shadowCam.right}
-        shadow-camera-top={LIGHTING.shadowCam.top}
-        shadow-camera-bottom={LIGHTING.shadowCam.bottom}
-        shadow-camera-near={LIGHTING.shadowCam.near}
-        shadow-camera-far={LIGHTING.shadowCam.far}
-      />
+      <ambientLight intensity={ambientIntensity} />
+      {lightOn && (
+        <directionalLight
+          ref={lightRef}
+          position={[-LIGHTING.sunSquareHalfExtent, LIGHTING.sunSquareHalfExtent, LIGHTING.sunOrbitZ]}
+          intensity={LIGHTING.sunIntensity}
+          castShadow
+          shadow-mapSize-width={LIGHTING.shadowMapSize}
+          shadow-mapSize-height={LIGHTING.shadowMapSize}
+          shadow-bias={LIGHTING.shadowBias}
+          shadow-normalBias={LIGHTING.shadowNormalBias}
+          shadow-camera-left={LIGHTING.shadowCam.left}
+          shadow-camera-right={LIGHTING.shadowCam.right}
+          shadow-camera-top={LIGHTING.shadowCam.top}
+          shadow-camera-bottom={LIGHTING.shadowCam.bottom}
+          shadow-camera-near={LIGHTING.shadowCam.near}
+          shadow-camera-far={LIGHTING.shadowCam.far}
+        />
+      )}
     </>
   )
 }
@@ -98,6 +148,7 @@ function App() {
   })
 
   const [backgroundColor, setBackgroundColor] = useState<string>(PALETTE_LIST[1])
+  const [lightOn, setLightOn] = useState(true)
 
   const stackIndexOf = useCallback(
     (id: SheetId) => {
@@ -181,7 +232,11 @@ function App() {
         overscrollBehavior: 'none',
         touchAction: 'none',
         position: 'relative',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
       }}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <div
         style={{
@@ -199,10 +254,20 @@ function App() {
         <button onClick={onResetPositions} style={buttonStyle}>
           Reset position
         </button>
+        <button onClick={() => setLightOn((on) => !on)} style={buttonStyle}>
+          {lightOn ? 'Light off' : 'Light on'}
+        </button>
       </div>
       <Canvas
         camera={{ position: [0, 0, 2.5], fov: 45 }}
-        style={{ background: '#1a1a2e', touchAction: 'none' }}
+        style={{
+          background: '#1a1a2e',
+          touchAction: 'none',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
+        }}
+        onContextMenu={(e) => e.preventDefault()}
         shadows
         dpr={[1, 2]}
         gl={{
@@ -211,7 +276,7 @@ function App() {
           toneMappingExposure: LIGHTING.rendererExposure,
         }}
       >
-        <SimpleKeyLight />
+        <RotatingSunLight lightOn={lightOn} />
         <BackgroundLayer color={backgroundColor} />
 
         {stackOrder.map((id) => {
